@@ -93,13 +93,14 @@ RUN fix-permissions "${CONDA_DIR}" && \
     jupyter labextension install qgrid2
 
 # Install eclipse for development porposes
+# Edit: change the download source
 RUN cd /tmp && \
     apt update && \
     apt install -y default-jre x11-apps libswt-gtk-4-jni && \
-    wget https://mirror.umd.edu/eclipse/technology/epp/downloads/release/2023-12/R/eclipse-embedcpp-2023-12-R-linux-gtk-x86_64.tar.gz && \
-    tar xf eclipse-embedcpp-2023-12-R-linux-gtk-x86_64.tar.gz -C /opt && \
+    wget https://mirror.umd.edu/eclipse/technology/epp/downloads/release/2024-03/R/eclipse-embedcpp-2024-03-R-linux-gtk-x86_64.tar.gz && \
+    tar xf eclipse-embedcpp-2024-03-R-linux-gtk-x86_64.tar.gz -C /opt && \
     ln -s /opt/eclipse/eclipse /usr/local/bin/ && \
-    rm eclipse-embedcpp-2023-12-R-linux-gtk-x86_64.tar.gz && \
+    rm eclipse-embedcpp-2024-03-R-linux-gtk-x86_64.tar.gz && \
     chown -R ${NB_USER}:${NB_GROUP} /opt/eclipse /usr/local/bin/eclipse
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -136,6 +137,7 @@ RUN apt-get update \
     procps \
     sudo \
     wget \
+    libjson-c-dev \
   && wget -q "https://download2.rstudio.org/server/jammy/amd64/rstudio-server-2023.12.1-402-amd64.deb" \
   && dpkg -i rstudio-server-*-amd64.deb \
   && rm rstudio-server-*-amd64.deb \
@@ -215,11 +217,19 @@ RUN echo "#!/usr/bin/env bash" > /usr/local/bin/before-notebook.d/start-servises
 
 COPY --chown=${NB_USER}:${NB_GROUP} . /opt/slurm_sim_tools
 
+# Edit: intasll GLib
+RUN apt-get update && \
+    apt-get install -y libglib2.0-dev
+
+# Edit: install gtk+
+RUN apt-get update && \
+    apt-get install -y libgtk2.0-dev
+
 # build optimized version
 RUN mkdir -p /opt/slurm_sim_bld/slurm_sim_opt && \
     cd /opt/slurm_sim_bld/slurm_sim_opt && \
     /opt/slurm_sim_tools/slurm_simulator/configure --prefix=/opt/slurm_sim \
-        --disable-x11 --enable-front-end \
+        --disable-x11 --enable-front-end --disable-dependency-tracking \
         --with-hdf5=no \
         CFLAGS='-O3 -Wno-error=unused-variable -Wno-error=implicit-function-declaration' \
         --enable-simulator && \
@@ -228,7 +238,7 @@ RUN mkdir -p /opt/slurm_sim_bld/slurm_sim_opt && \
     mkdir -p /opt/slurm_sim_bld/slurm_sim_deb && \
     cd /opt/slurm_sim_bld/slurm_sim_deb && \
     /opt/slurm_sim_tools/slurm_simulator/configure --prefix=/opt/slurm_sim_deb \
-        --disable-x11 --enable-front-end \
+        --disable-x11 --enable-front-end --disable-dependency-tracking \
         --enable-developer --disable-optimizations --enable-debug \
         --with-hdf5=no \
        'CFLAGS=-g -O0 -Wno-error=unused-variable -Wno-error=implicit-function-declaration' \
